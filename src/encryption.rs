@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use num_bigint::BigUint;
 use num_traits::FromPrimitive;
-use rand::fill;
+use rand::Rng;
 
 use crate::protocol::{self, Key};
 
@@ -42,6 +42,14 @@ pub const HOLY_PRIME_STR: &'static str = "
 913327
 ";
 
+pub const AUTH_BITS_SMALL: usize = 2048;
+pub const AUTH_BITS_LARGE: usize = 4096;
+pub const AUTH_EXPONENT: u32 = 65537;
+
+pub fn get_exponent() -> rsa::BigUint {
+    rsa::BigUint::from_u32(AUTH_EXPONENT).unwrap()
+}
+
 pub fn get_g() -> BigUint {
     BigUint::from_u8(2).unwrap()
 }
@@ -59,8 +67,9 @@ pub struct Keypair {
 
 impl Keypair {
     pub fn generate_random() -> Self {
+        let mut rng = rand::thread_rng();
         let mut secret = [0u8; 256];
-        fill(&mut secret);
+        rng.fill(&mut secret);
         let private = BigUint::from_bytes_be(&secret);
         let public = Self::generate_public_key(&private);
 
@@ -94,3 +103,5 @@ impl Keypair {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Session(pub protocol::Session);
+
+pub struct Authentication {}
