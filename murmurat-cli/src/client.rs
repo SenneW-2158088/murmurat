@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
-use tokio::net::UdpSocket;
-use murmurat_core::{encryption::Keypair, message::MurmuratMessage, protocol, RsaAuthentication};
+use tokio::{net::UdpSocket, signal::unix::signal};
+use murmurat_core::{encryption::{EncryptedData, Keypair}, message::MurmuratMessage, protocol, RsaAuthentication};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
@@ -12,17 +12,19 @@ struct ClientSession {
 
 pub struct MurmuratClient {
     socket: Arc<UdpSocket>,
+    target_addr: String,
     dh_keypair: Keypair,
     rsa: RsaAuthentication,
     session: Arc<Mutex<ClientSession>>
 }
 
 impl MurmuratClient {
-    pub async fn new(addr: &str, keypair: Keypair, rsa: RsaAuthentication) -> std::io::Result<Self> {
+    pub async fn new(addr: &str, target_addr: &str, keypair: Keypair, rsa: RsaAuthentication) -> std::io::Result<Self> {
         let socket = UdpSocket::bind(addr).await?;
         Ok(Self {
             socket: Arc::new(socket),
             dh_keypair: keypair,
+            target_addr: String::from(target_addr),
             rsa,
             session: Arc::new(Mutex::new(ClientSession {
                 session: None,
@@ -31,34 +33,7 @@ impl MurmuratClient {
         })
     }
 
-    pub async fn listen(&self) -> std::io::Result<()> {
-        let socket = self.socket.clone();
-        let session = self.session.clone();
-        let (tx, mut rx) = mpsc::channel(100);
-
-        tokio::spawn(async move {
-            let mut buf = vec![0u8; 65535];
-            loop {
-                match socket.recv_from(&mut buf).await {
-                    Ok((size, _)) => {
-                        let message = MurmuratMessage::decode(&buf[..size]);
-                        let _ = tx.send(message).await;
-                    }
-                    Err(e) => {
-                        eprintln!("Error receiving UDP packet: {}", e);
-                    }
-                }
-            }
-        });
-
-        while let Some(message) = rx.recv().await {
-            let mut session_guard = session.lock().unwrap();
-        }
-
-        Ok(())
-    }
-
-    pub async fn connect(&self, addr: &str) -> std::io::Result<()> {
+    pub async fn connect(&self) -> std::io::Result<()> {
         let socket = self.socket.clone();
         let session = self.session.clone();
 
@@ -73,7 +48,7 @@ impl MurmuratClient {
         let encoded_dh_message = dh_message.encode();
 
         // Send the DH message to the specified address
-        socket.send_to(&encoded_dh_message, addr).await?;
+        socket.send_to(&encoded_dh_message, self.target_addr.as_str()).await?;
 
         // Wait for a response
         let mut buf = vec![0u8; 65535];
@@ -108,26 +83,41 @@ impl MurmuratClient {
         let encoded_hello_message = hello_message.encode();
 
         // Send the Hello message to the specified address
-        socket.send_to(&encoded_hello_message, addr).await?;
+        socket.send_to(&encoded_hello_message, self.target_addr.as_str()).await?;
 
         Ok(())
     }
 
-    fn handle_message(&mut self, message: MurmuratMessage) {
-        match message {
-            MurmuratMessage::DH(dhmessage) => {
-                let mut session_guard = self.session.lock().unwrap();
-                let pubkey = BigUint::from_bytes_be(&dhmessage.dh_public);
-                let session = self.dh_keypair.session(&pubkey);
-                session_guard.session = Some(session.0)
+    pub async fn send(&self, message: &str) -> std::io::Result<()> {
+        let socket = self.socket.clone();
+
+        let session_guard = self.session.lock().unwrap();
+        let session = session_guard.session.unwrap();
+
+        let encrypted = EncryptedData::encrypt(message, session);
+
+        let signature = self.rsa.sign_message(message);
+
+        // Create a DataMessage from the input message
+        let data_message = MurmuratMessage::Data(murmurat_core::message::DataMessage {
+            length: message.len() as u16,
+            nonce: encrypted.nonce[0],
+            timestamp: protocol::Timestamp::default(),
+            data: encrypted.data.clone(),
+            pubkey_id: self.rsa.id,
+            signature: {
+                let mut signature_array = [0u8; 512];
+                let signature_bytes = &signature[..std::cmp::min(signature.len(), 512)];
+                signature_array[..signature_bytes.len()].copy_from_slice(signature_bytes);
+                signature_array
             },
-            MurmuratMessage::Hello(hello_message) => {
-                let mut session_guard = self.session.lock().unwrap();
-                session_guard.client_rsa_public
-                    .insert(hello_message.pubkey_id, hello_message.rsa_public);
-            },
-            MurmuratMessage::Data(data_message) => {
-            },
-        }
+        });
+        // Encode the DataMessage
+        let encoded_message = data_message.encode();
+
+        // Send the encoded DataMessage to the specified address
+        socket.send_to(&encoded_message, self.target_addr.as_str()).await?;
+
+        Ok(())
     }
 }
