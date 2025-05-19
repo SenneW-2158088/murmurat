@@ -1,11 +1,13 @@
 /// Representing the public key used for the DH message
-pub type Key = [u8; 255];
+pub type DhPublicKey = [u8; 255];
 
 /// Id of the public key
 pub type Session = [u8; 16];
 
+// maps to rsa public key
+pub type RsaPublicKeyId = u32;
 /// The rsa public signature
-pub type Signature = [u8; 512];
+pub type RsaPublic = [u8; 512];
 
 pub type Timestamp = u32;
 

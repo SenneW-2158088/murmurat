@@ -1,0 +1,11 @@
+[package]
+name = "murmurat-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+murmurat-core = { path = "../murmurat-core" }
+tokio = { version = "1.45.0", features = ["full", "net", "process", "sync"] }
+
+num-bigint = "0.4.6"
+config = "0.15.11"

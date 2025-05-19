@@ -4,7 +4,9 @@ use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 use rand::Rng;
 
-use crate::protocol::{self, Key};
+use aes::{cipher::{KeyIvInit, StreamCipher}, Aes128};
+
+use crate::protocol::{self, DhPublicKey};
 
 pub const HOLY_PRIME: [u8; 256] = [
     0x01, 0x89, 0x45, 0x53, 0x31, 0x45, 0x96, 0x77, 0x15, 0x61, 0x19, 0x68, 0x71, 0x36, 0x30, 0x69,
@@ -105,3 +107,39 @@ impl Keypair {
 pub struct Session(pub protocol::Session);
 
 pub struct Authentication {}
+
+pub struct EncryptedData {
+    pub data: Vec<u8>,
+    pub nonce: [u8; 16]
+}
+
+type Aes128Ctr64LE = ctr::Ctr64LE<aes::Aes128>;
+
+impl EncryptedData {
+    // TODO: Should nonce be random?
+    fn rand_nonce() -> [u8; 16] {
+        let mut nonce = [0u8; 16];
+        nonce.fill(0);
+        nonce[0] = rand::random();
+        nonce
+    }
+
+    pub fn encrypt(data: &str, session: Session) -> Self {
+        let data: Vec<u8> = data.bytes().collect();
+        let nonce = EncryptedData::rand_nonce();
+        let mut cipher = Aes128Ctr64LE::new(&session.0.into(), &nonce.into());
+        let mut data = data.to_vec();
+        cipher.apply_keystream(&mut data);
+        Self {
+            nonce,
+            data
+        }
+    }
+
+    pub fn decrypt(self, session: Session) -> String {
+        let mut cipher = Aes128Ctr64LE::new(&session.0.into(), &self.nonce.into());
+        let mut decrypted_data = self.data.clone();
+        cipher.apply_keystream(&mut decrypted_data);
+        String::from_utf8(decrypted_data).expect("Failed to decode UTF-8")
+    }
+}
