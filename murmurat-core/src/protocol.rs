@@ -1,5 +1,5 @@
 /// Representing the public key used for the DH message
-pub type DhPublicKey = [u8; 255];
+pub type DhPublicKey = [u8; 256];
 
 /// Id of the public key
 pub type Session = [u8; 16];

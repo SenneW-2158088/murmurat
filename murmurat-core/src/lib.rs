@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use encryption::{get_exponent, EncryptedData, Keypair, Session, AUTH_BITS_LARGE};
+use encryption::{AUTH_BITS_LARGE, EncryptedData, Keypair, Session, get_exponent};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 use rand::{Rng, RngCore, rngs::OsRng};
@@ -72,10 +72,13 @@ mod tests {
         // Data to encrypt
         let data = "Hello, this is a test message.";
 
-        let encrypted = EncryptedData::encrypt(data, client_session);
-        assert!(!encrypted.data.is_empty(), "Encrypted data should not be empty");
+        let encrypted = EncryptedData::encrypt(data, &client_session);
+        assert!(
+            !encrypted.data.is_empty(),
+            "Encrypted data should not be empty"
+        );
 
-        let decrypted = encrypted.decrypt(server_session);
+        let decrypted = encrypted.decrypt(&server_session);
         assert_eq!(decrypted, data, "Decrypted data should match the original");
     }
 }

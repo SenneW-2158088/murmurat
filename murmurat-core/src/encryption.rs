@@ -4,9 +4,12 @@ use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 use rand::Rng;
 
-use aes::{cipher::{KeyIvInit, StreamCipher}, Aes128};
+use aes::{
+    Aes128,
+    cipher::{KeyIvInit, StreamCipher},
+};
 
-use crate::protocol::{self, DhPublicKey};
+use crate::protocol::{self, DhPublicKey, Nonce};
 
 pub const HOLY_PRIME: [u8; 256] = [
     0x01, 0x89, 0x45, 0x53, 0x31, 0x45, 0x96, 0x77, 0x15, 0x61, 0x19, 0x68, 0x71, 0x36, 0x30, 0x69,
@@ -101,21 +104,42 @@ impl Keypair {
 
         Session(session)
     }
+
+    pub fn public(&self) -> DhPublicKey {
+        let mut dh_public_array = [0u8; 256];
+        dh_public_array.copy_from_slice(&self.public.to_bytes_be());
+        dh_public_array
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Session(pub protocol::Session);
+
+impl From<protocol::Session> for Session {
+    fn from(value: protocol::Session) -> Self {
+        Self(value)
+    }
+}
 
 pub struct Authentication {}
 
 pub struct EncryptedData {
     pub data: Vec<u8>,
-    pub nonce: [u8; 16]
+    pub nonce: [u8; 16],
 }
 
 type Aes128Ctr64LE = ctr::Ctr64LE<aes::Aes128>;
 
 impl EncryptedData {
+    pub fn new(data: Vec<u8>, nonce: Nonce) -> Self {
+        let mut nonce_array = [0u8; 16];
+        nonce_array[0] = nonce;
+        Self {
+            data,
+            nonce: nonce_array,
+        }
+    }
+
     // TODO: Should nonce be random?
     fn rand_nonce() -> [u8; 16] {
         let mut nonce = [0u8; 16];
@@ -124,19 +148,16 @@ impl EncryptedData {
         nonce
     }
 
-    pub fn encrypt(data: &str, session: Session) -> Self {
+    pub fn encrypt(data: &str, session: &Session) -> Self {
         let data: Vec<u8> = data.bytes().collect();
-        let nonce = EncryptedData::rand_nonce();
+        let nonce = EncryptedData::rand_nonce(); // This should not be random, it should be incremented each message
         let mut cipher = Aes128Ctr64LE::new(&session.0.into(), &nonce.into());
         let mut data = data.to_vec();
         cipher.apply_keystream(&mut data);
-        Self {
-            nonce,
-            data
-        }
+        Self { nonce, data }
     }
 
-    pub fn decrypt(self, session: Session) -> String {
+    pub fn decrypt(self, session: &Session) -> String {
         let mut cipher = Aes128Ctr64LE::new(&session.0.into(), &self.nonce.into());
         let mut decrypted_data = self.data.clone();
         cipher.apply_keystream(&mut decrypted_data);
