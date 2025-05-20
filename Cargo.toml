@@ -2,4 +2,5 @@
 members = [
     "murmurat-core",
     "murmurat-cli",
+    "murmurat-exploit",
 ]

@@ -80,9 +80,9 @@ pub struct DataMessage {
 
 impl Encode for DataMessage {
     fn encode<T: bytes::BufMut>(&self, buffer: &mut T) -> crate::coding::Result<()> {
-        buffer.put_slice(&self.length.to_be_bytes());
-        buffer.put_slice(&self.nonce.to_be_bytes());
-        buffer.put_slice(&self.timestamp.to_be_bytes());
+        buffer.put_u16(self.length);
+        buffer.put_u8(self.nonce);
+        buffer.put_u32(self.timestamp);
         buffer.put_slice(&self.data);
         buffer.put_u32(self.public_key_id);
         buffer.put_slice(&self.signature);
