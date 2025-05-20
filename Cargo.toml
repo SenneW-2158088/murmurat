@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "murmurat-core",
-    "murmurat-cli",
+    "murmurat-cli", "murmurat-exploit",
 ]

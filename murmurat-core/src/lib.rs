@@ -5,8 +5,10 @@ use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 use rand::{Rng, RngCore, rngs::OsRng};
 use rsa::{
-    Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey, pkcs1::EncodeRsaPublicKey, pkcs1v15,
-    traits::PublicKeyParts,
+    Pkcs1v15Encrypt, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey,
+    pkcs1::EncodeRsaPublicKey,
+    pkcs1v15,
+    traits::{PaddingScheme, PublicKeyParts},
 };
 use sha3::{Digest, Sha3_256};
 
