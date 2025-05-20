@@ -68,7 +68,7 @@ impl Decode for HelloMessage {
 }
 
 /// Message used for
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DataMessage {
     pub length: protocol::DataLength,
     pub nonce: protocol::Nonce,
@@ -92,11 +92,13 @@ impl Encode for DataMessage {
 }
 impl Decode for DataMessage {
     fn decode<T: bytes::Buf>(buffer: &mut T) -> crate::coding::Result<Self> {
+        println!("REMAINING: {}", buffer.remaining());
         // Read length
         let total_size = buffer.get_u16();
-        println!("total size: {}", total_size);
+        println!("SIZE: {}", total_size);
 
-        let length = total_size - 1 - 4 - 4 - 512;
+        let length = total_size - 521;
+        println!("length: {}", length);
 
         // Read nonce
         let nonce = buffer.get_u8();

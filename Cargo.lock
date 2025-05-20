@@ -682,6 +682,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "murmurat-relay"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "clap",
+ "config",
+ "murmurat-core",
+ "num-bigint",
+ "pcap-parser",
+ "socket2",
+ "tokio",
+]
+
+[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
