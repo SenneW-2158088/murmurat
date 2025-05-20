@@ -6,6 +6,7 @@ pub type Session = [u8; 16];
 
 // maps to rsa public key
 pub type RsaPublicKeyId = u32;
+
 /// The rsa public signature
 pub type RsaPublic = [u8; 512];
 

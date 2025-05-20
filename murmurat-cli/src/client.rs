@@ -70,7 +70,7 @@ impl MurmuratClient {
         // Create a "Hello" message after DH exchange
         let hello_message = MurmuratMessage::Hello(murmurat_core::message::HelloMessage {
             pubkey_id: self.rsa.id,
-            rsa_public: self.rsa.key,
+            rsa_public: self.rsa.key_bytes,
         });
 
         self.send_message(&hello_message, &addr).await?;
@@ -98,6 +98,7 @@ impl MurmuratClient {
         };
 
         let encrypted = EncryptedData::encrypt(message, &session.session);
+        let signature = self.rsa.sign(&encrypted.data);
 
         // Create a DataMessage from the input message
         let data_message = MurmuratMessage::Data(murmurat_core::message::DataMessage {
@@ -105,8 +106,8 @@ impl MurmuratClient {
             nonce: encrypted.nonce[0],
             timestamp: protocol::Timestamp::default(),
             data: encrypted.data.clone(),
-            public_key: self.keypair.public(),
-            signature: self.rsa.key,
+            public_key_id: self.rsa.id,
+            signature,
         });
 
         let Some(addr) = self.target_addr else {

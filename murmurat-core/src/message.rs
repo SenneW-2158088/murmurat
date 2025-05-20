@@ -1,6 +1,6 @@
 use crate::{
     coding::{CodingError, Decode, Encode},
-    encryption, protocol,
+    protocol,
 };
 
 /// Message used for key exchange
@@ -74,7 +74,7 @@ pub struct DataMessage {
     pub nonce: protocol::Nonce,
     pub timestamp: protocol::Timestamp,
     pub data: protocol::Data,
-    pub public_key: protocol::DhPublicKey,
+    pub public_key_id: protocol::RsaPublicKeyId,
     pub signature: protocol::RsaPublic,
 }
 
@@ -84,7 +84,7 @@ impl Encode for DataMessage {
         buffer.put_slice(&self.nonce.to_be_bytes());
         buffer.put_slice(&self.timestamp.to_be_bytes());
         buffer.put_slice(&self.data);
-        buffer.put_slice(&self.public_key);
+        buffer.put_u32(self.public_key_id);
         buffer.put_slice(&self.signature);
         Ok(())
     }
@@ -112,10 +112,7 @@ impl Decode for DataMessage {
         let data = protocol::Data::from(data_bytes);
 
         // Read public key
-        let mut public_key_bytes = [0u8; 256];
-        buffer.copy_to_slice(&mut public_key_bytes);
-        let public_key = protocol::DhPublicKey::try_from(public_key_bytes.as_slice())
-            .map_err(|_| CodingError::InvalidValue)?;
+        let public_key_id = buffer.get_u32();
 
         // Read signature
         let mut signature_bytes = [0u8; 512];
@@ -128,7 +125,7 @@ impl Decode for DataMessage {
             nonce,
             timestamp,
             data,
-            public_key,
+            public_key_id,
             signature,
         })
     }

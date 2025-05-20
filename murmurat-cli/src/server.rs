@@ -92,15 +92,30 @@ impl MurmuratServer {
                 // Create a "Hello" message after DH exchange
                 let hello_message = MurmuratMessage::Hello(murmurat_core::message::HelloMessage {
                     pubkey_id: self.rsa.id,
-                    rsa_public: self.rsa.key,
+                    rsa_public: self.rsa.key_bytes,
                 });
 
                 self.send_message(&hello_message, &addr).await?;
             }
             MurmuratMessage::Data(data_message) => {
                 if let Some(session) = self.sessions.get(&addr) {
+                    let Some(public_key) =
+                        session.client_rsa_public.get(&data_message.public_key_id)
+                    else {
+                        panic!("No public key with identifier");
+                    };
+
+                    if !RsaAuthentication::verify(
+                        public_key,
+                        &data_message.data,
+                        &data_message.signature,
+                    ) {
+                        panic!("Signature not correct");
+                    }
+
                     let encrypted = EncryptedData::new(data_message.data, data_message.nonce);
                     let decrypted = encrypted.decrypt(&session.session);
+
                     println!("[{}] => {}", addr, decrypted);
                 } else {
                     panic!("Couldn't decrypt data...no session")
