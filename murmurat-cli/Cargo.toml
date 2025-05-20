@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 murmurat-core = { path = "../murmurat-core" }
 tokio = { version = "1.45.0", features = ["full", "net", "process", "sync"] }
+bytes = "1.10.1"
 
 num-bigint = "0.4.6"
 config = "0.15.11"

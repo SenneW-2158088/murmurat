@@ -1,56 +1,57 @@
-use std::thread::panicking;
+use std::{net::IpAddr, str::FromStr, thread::panicking};
 
-use client::MurmuratClient;
-use server::MurmuratServer;
-use murmurat_core::{encryption::Keypair, RsaAuthentication};
 use clap::Parser;
+use client::MurmuratClient;
+use murmurat_core::{RsaAuthentication, encryption::Keypair};
+use server::MurmuratServer;
 
 mod client;
 mod server;
 
 #[derive(Parser)]
 struct Cli {
-    #[clap(long, default_value = "127.0.0.1")]
-    host: String,
-    #[clap(long)]
-    port: Option<String>,
-    #[clap(long)]
-    connect_port: Option<String>,
+    #[clap(long, default_value = "127.0.0.1:1400")]
+    host: std::net::SocketAddr,
+
+    #[clap(long, default_value = "127.0.0.1:1401")]
+    target: std::net::SocketAddr,
+
     #[clap(long)]
     server: bool,
 }
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // Use command-line arguments to retrieve parameters
     let args = Cli::parse();
 
-    let addr = match args.port {
-        Some(port) => format!("{}:{}", args.host, port),
-        None => format!("{}:8080", args.host),
-    };
-
-    let connect_addr = match args.connect_port {
-        Some(connect_port) => Some(format!("{}:{}", args.host, connect_port)),
-        None => None,
-    };
+    let keypair = Keypair::generate_random();
+    let rsa = RsaAuthentication::generate_random();
 
     if args.server {
-        let keypair = Keypair::generate_random();
-        let rsa = RsaAuthentication::generate_random();
-        let server = MurmuratServer::new(&addr, keypair, rsa).await?;
-        println!("MurmuratServer listening on {}", addr);
+        println!("MurmuratServer listening on {}", args.host);
+        let server = MurmuratServer::new(&args.target, keypair, rsa).await?;
         server.listen().await
     } else {
-        if connect_addr.is_none() {
-            panic!("Provide port for client");
+        println!("[i] MurmuratClient listening on {}", args.host);
+        let mut client = MurmuratClient::new(&args.host, keypair, rsa).await?;
+
+        println!("[i] MurmuratClient connecting to {}", args.target);
+        client.connect(args.target).await?;
+        println!("[+] MurmuratClient connected to {}", args.target);
+
+        let input = std::io::stdin();
+
+        loop {
+            let mut message = String::default();
+            input.read_line(&mut message)?;
+
+            match message.as_str() {
+                "exit" => break,
+                _ => client.send(message.as_str()).await?,
+            }
         }
-        let keypair = Keypair::generate_random();
-        let rsa = RsaAuthentication::generate_random();
-        println!("MurmuratClient listening on {}", addr);
-        println!("MurmuratClient connecting to {:?}", connect_addr);
-        let client = MurmuratClient::new(&addr, &connect_addr.unwrap(), keypair, rsa).await?;
-        client.connect().await;
-        client.send("hello world!");
+
         Ok(())
     }
 }

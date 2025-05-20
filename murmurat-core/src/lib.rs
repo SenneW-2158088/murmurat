@@ -1,10 +1,16 @@
-use std::str::FromStr;
+use std::{io::Write, str::FromStr};
 
-use encryption::{get_exponent, EncryptedData, Keypair, Session, AUTH_BITS_LARGE};
+use encryption::{AUTH_BITS_LARGE, EncryptedData, Keypair, Session, get_exponent};
 use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::FromPrimitive;
 use rand::{Rng, RngCore, rngs::OsRng};
-use rsa::{RsaPrivateKey, RsaPublicKey, traits::PublicKeyParts};
+use rsa::{
+    Pkcs1v15Encrypt, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey,
+    pkcs1::EncodeRsaPublicKey,
+    pkcs1v15,
+    traits::{PaddingScheme, PublicKeyParts},
+};
+use sha3::{Digest, Sha3_256};
 
 pub mod coding;
 pub mod encryption;
@@ -27,30 +33,91 @@ fn diffie_hellman() {
 #[derive(Debug)]
 pub struct RsaAuthentication {
     pub id: u32,
-    pub key: [u8; 512],
+    pub key_bytes: [u8; 512],
+    pub public_key: RsaPublicKey,
+    pub private_key: RsaPrivateKey,
 }
 
 impl RsaAuthentication {
     pub fn generate_random() -> Self {
         let mut rng = rand::thread_rng();
-
         let exponent = get_exponent();
         let bits = AUTH_BITS_LARGE;
         let rsa = RsaPrivateKey::new_with_exp(&mut rng, bits, &exponent)
             .expect("Failed to generate a key");
-        let modulus = rsa.n().to_bytes_be();
 
-        let mut key = [0u8; 512];
+        // Get the public key
+        let public_key = rsa.to_public_key();
 
-        if modulus.len() <= 512 {
-            key.copy_from_slice(&modulus);
+        // Extract the modulus (n) in big-endian format
+        let modulus = public_key.n().to_bytes_be();
+
+        // Create a fixed-size 512-byte array
+        let mut key_bytes = [0u8; 512];
+
+        // Handle the modulus size appropriately
+        if modulus.len() < 512 {
+            // If modulus is smaller than 512 bytes, pad with zeros at the beginning
+            let start_idx = 512 - modulus.len();
+            key_bytes[start_idx..].copy_from_slice(&modulus);
+        } else if modulus.len() > 512 {
+            // If modulus is larger than 512 bytes, truncate
+            key_bytes.copy_from_slice(&modulus[modulus.len() - 512..]);
         } else {
-            key.copy_from_slice(&modulus[..512]);
+            // Exactly 512 bytes
+            key_bytes.copy_from_slice(&modulus);
         }
 
         let id: u32 = rand::random();
+        Self {
+            id,
+            key_bytes,
+            public_key,
+            private_key: rsa,
+        }
+    }
 
-        Self { id, key }
+    pub fn sign(&self, data: &[u8]) -> protocol::RsaPublic {
+        let mut hasher = Sha3_256::new();
+        hasher.update(data);
+        let hash = hasher.finalize();
+
+        let padding = Pkcs1v15Sign::new_unprefixed();
+        let signature = self
+            .private_key
+            .sign(padding, &hash)
+            .expect("Failed to sign data");
+
+        // Return the protocol::RsaPublic struct
+        let mut sig = [0u8; 512];
+        sig.copy_from_slice(signature.as_slice());
+        sig
+    }
+
+    pub fn verify(
+        public_key_bytes: &[u8; 512],
+        data: &[u8],
+        signature: &protocol::RsaPublic,
+    ) -> bool {
+        let mut hasher = Sha3_256::new();
+        hasher.update(data);
+        let hash = hasher.finalize();
+
+        let mut start_idx = 0;
+        while start_idx < public_key_bytes.len() && public_key_bytes[start_idx] == 0 {
+            start_idx += 1;
+        }
+
+        let modulus = rsa::BigUint::from_bytes_be(&public_key_bytes[start_idx..]);
+        let exponent = get_exponent();
+
+        let public_key = match RsaPublicKey::new(modulus, exponent) {
+            Ok(key) => key,
+            Err(_) => return false,
+        };
+
+        let padding = Pkcs1v15Sign::new_unprefixed();
+        public_key.verify(padding, &hash, signature).is_ok()
     }
 }
 
@@ -72,10 +139,13 @@ mod tests {
         // Data to encrypt
         let data = "Hello, this is a test message.";
 
-        let encrypted = EncryptedData::encrypt(data, client_session);
-        assert!(!encrypted.data.is_empty(), "Encrypted data should not be empty");
+        let encrypted = EncryptedData::encrypt(data, &client_session);
+        assert!(
+            !encrypted.data.is_empty(),
+            "Encrypted data should not be empty"
+        );
 
-        let decrypted = encrypted.decrypt(server_session);
+        let decrypted = encrypted.decrypt(&server_session);
         assert_eq!(decrypted, data, "Decrypted data should match the original");
     }
 }
