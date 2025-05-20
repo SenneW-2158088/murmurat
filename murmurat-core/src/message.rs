@@ -80,7 +80,8 @@ pub struct DataMessage {
 
 impl Encode for DataMessage {
     fn encode<T: bytes::BufMut>(&self, buffer: &mut T) -> crate::coding::Result<()> {
-        buffer.put_u16(self.length);
+        let total_size = 523 + self.length;
+        buffer.put_u16(total_size);
         buffer.put_u8(self.nonce);
         buffer.put_u32(self.timestamp);
         buffer.put_slice(&self.data);
@@ -92,33 +93,26 @@ impl Encode for DataMessage {
 impl Decode for DataMessage {
     fn decode<T: bytes::Buf>(buffer: &mut T) -> crate::coding::Result<Self> {
         // Read length
-        let mut length_bytes = [0u8; size_of::<protocol::DataLength>()];
-        buffer.copy_to_slice(&mut length_bytes);
-        let length = protocol::DataLength::from_be_bytes(length_bytes);
+        let total_size = buffer.get_u16();
+
+        let length = total_size - 523;
 
         // Read nonce
-        let mut nonce_bytes = [0u8; size_of::<protocol::Nonce>()];
-        buffer.copy_to_slice(&mut nonce_bytes);
-        let nonce = protocol::Nonce::from_be_bytes(nonce_bytes);
+        let nonce = buffer.get_u8();
 
         // Read timestamp
-        let mut timestamp_bytes = [0u8; size_of::<protocol::Timestamp>()];
-        buffer.copy_to_slice(&mut timestamp_bytes);
-        let timestamp = protocol::Timestamp::from_be_bytes(timestamp_bytes);
+        let timestamp = buffer.get_u32();
 
         // Read data
-        let mut data_bytes = vec![0; length as usize];
-        buffer.copy_to_slice(&mut data_bytes);
-        let data = protocol::Data::from(data_bytes);
+        let mut data = vec![0; length as usize];
+        buffer.copy_to_slice(&mut data);
 
         // Read public key
         let public_key_id = buffer.get_u32();
 
         // Read signature
-        let mut signature_bytes = [0u8; 512];
-        buffer.copy_to_slice(&mut signature_bytes);
-        let signature = protocol::RsaPublic::try_from(signature_bytes.as_slice())
-            .map_err(|_| CodingError::InvalidValue)?;
+        let mut signature = [0u8; 512];
+        buffer.copy_to_slice(&mut signature);
 
         Ok(Self {
             length,

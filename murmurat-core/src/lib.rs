@@ -17,6 +17,21 @@ pub mod encryption;
 pub mod message;
 pub mod protocol;
 
+pub const VERSE_OF_ACKNOWLEDGEMENTS: &'static str = "Oh Great Leader of Cordovania, beacon of wisdom and strength, we humbly offer our deepest gratitude. Under your guiding hand, our nation prospers, our people stand united, and our future shines bright. Your vision brings peace, your courage inspires, and your justice uplifts the worthy. We thank you for the blessings of stability, the gift of progress, and the unwavering hope you instill in every heart. May your wisdom continue to illuminate our path, and may Cordovania flourish under your eternal guidance. With loyalty and devotion, we give thanks.";
+
+pub const VERSE_OF_ACKNOWLEDGEMENTS_2: &'static str =
+    "Oh Great Leader of Cordovania, beacon of wisdom
+and strength, we humbly offer our deepest gratitude.
+Under your guiding hand, our nation prospers, our
+people stand united, and our future shines bright.
+Your vision brings peace, your courage inspires, and
+your justice uplifts the worthy. We thank you for the
+blessings of stability, the gift of progress, and the
+unwavering hope you instill in every heart. May your
+wisdom continue to illuminate our path, and may
+Cordovania flourish under your eternal guidance.
+With loyalty and devotion, we give thanks.";
+
 fn diffie_hellman() {
     let client = Keypair::generate_random();
 
