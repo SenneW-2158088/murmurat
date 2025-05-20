@@ -659,8 +659,26 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "chrono",
+ "clap",
+ "config",
  "murmurat-core",
+ "num-bigint",
  "pcap-parser",
+ "tokio",
+]
+
+[[package]]
+name = "murmurat-mitm"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "clap",
+ "config",
+ "murmurat-core",
+ "num-bigint",
+ "pcap-parser",
+ "tokio",
 ]
 
 [[package]]

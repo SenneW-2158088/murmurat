@@ -77,3 +77,16 @@ The MURMURAT protocol is a fictional military communication protocol designed fo
 - Only two parties communicating:
   - Source: 77.102.50.25
   - Destination: 201.1.192.22
+
+
+# Proof of concepts
+
+
+```sh
+# Run mitm client:
+cargo run --bin murmurat-mitm --release -- --addr 127.0.0.1:4003 --server 127.0.0.1:4001
+# Run server:
+cargo run --bin murmurat-cli --release -- --server --target 127.0.0.1:4001
+# Run client:
+cargo run --bin murmurat-cli --release -- --host 127.0.0.1:4002 --target 127.0.0.1:4003
+```
