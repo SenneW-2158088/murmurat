@@ -80,7 +80,7 @@ pub struct DataMessage {
 
 impl Encode for DataMessage {
     fn encode<T: bytes::BufMut>(&self, buffer: &mut T) -> crate::coding::Result<()> {
-        let total_size = 523 + self.length;
+        let total_size = self.length + 521;
         buffer.put_u16(total_size);
         buffer.put_u8(self.nonce);
         buffer.put_u32(self.timestamp);
@@ -94,8 +94,9 @@ impl Decode for DataMessage {
     fn decode<T: bytes::Buf>(buffer: &mut T) -> crate::coding::Result<Self> {
         // Read length
         let total_size = buffer.get_u16();
+        println!("total size: {}", total_size);
 
-        let length = total_size - 523;
+        let length = total_size - 1 - 4 - 4 - 512;
 
         // Read nonce
         let nonce = buffer.get_u8();
