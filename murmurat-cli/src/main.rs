@@ -10,10 +10,10 @@ mod server;
 
 #[derive(Parser)]
 struct Cli {
-    #[clap(long, default_value = "127.0.0.1:4000")]
+    #[clap(long, default_value = "127.0.0.1:1400")]
     host: std::net::SocketAddr,
 
-    #[clap(long, default_value = "127.0.0.1:4001")]
+    #[clap(long, default_value = "127.0.0.1:1401")]
     target: std::net::SocketAddr,
 
     #[clap(long)]
@@ -33,13 +33,24 @@ async fn main() -> std::io::Result<()> {
         let server = MurmuratServer::new(&args.target, keypair, rsa).await?;
         server.listen().await
     } else {
-        println!("MurmuratClient listening on {}", args.host);
+        println!("[i] MurmuratClient listening on {}", args.host);
         let mut client = MurmuratClient::new(&args.host, keypair, rsa).await?;
 
-        println!("MurmuratClient connecting to {}", args.target);
+        println!("[i] MurmuratClient connecting to {}", args.target);
         client.connect(args.target).await?;
+        println!("[+] MurmuratClient connected to {}", args.target);
 
-        client.send("hello world!").await?;
+        let input = std::io::stdin();
+
+        loop {
+            let mut message = String::default();
+            input.read_line(&mut message)?;
+
+            match message.as_str() {
+                "exit" => break,
+                _ => client.send(message.as_str()).await?,
+            }
+        }
 
         Ok(())
     }

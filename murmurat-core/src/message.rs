@@ -91,47 +91,34 @@ impl Encode for DataMessage {
 }
 impl Decode for DataMessage {
     fn decode<T: bytes::Buf>(buffer: &mut T) -> crate::coding::Result<Self> {
-        let length_size = std::mem::size_of::<protocol::DataLength>();
-        let nonce_size = std::mem::size_of::<protocol::Nonce>();
-        let timestamp_size = std::mem::size_of::<protocol::Timestamp>();
-        let public_key_size = std::mem::size_of::<protocol::DhPublicKey>();
-        let signature_size = std::mem::size_of::<protocol::RsaPublic>();
-
-        if buffer.remaining() < length_size + nonce_size + timestamp_size {
-            return Err(CodingError::BufferTooSmall);
-        }
-
         // Read length
-        let mut length_bytes = [0u8; std::mem::size_of::<protocol::DataLength>()];
+        let mut length_bytes = [0u8; size_of::<protocol::DataLength>()];
         buffer.copy_to_slice(&mut length_bytes);
         let length = protocol::DataLength::from_be_bytes(length_bytes);
 
         // Read nonce
-        let mut nonce_bytes = [0u8; std::mem::size_of::<protocol::Nonce>()];
+        let mut nonce_bytes = [0u8; size_of::<protocol::Nonce>()];
         buffer.copy_to_slice(&mut nonce_bytes);
         let nonce = protocol::Nonce::from_be_bytes(nonce_bytes);
 
         // Read timestamp
-        let mut timestamp_bytes = [0u8; std::mem::size_of::<protocol::Timestamp>()];
+        let mut timestamp_bytes = [0u8; size_of::<protocol::Timestamp>()];
         buffer.copy_to_slice(&mut timestamp_bytes);
         let timestamp = protocol::Timestamp::from_be_bytes(timestamp_bytes);
 
-        // Calculate data size
-        let data_size = buffer.remaining() - public_key_size - signature_size;
-
         // Read data
-        let mut data_bytes = vec![0; data_size];
+        let mut data_bytes = vec![0; length as usize];
         buffer.copy_to_slice(&mut data_bytes);
         let data = protocol::Data::from(data_bytes);
 
         // Read public key
-        let mut public_key_bytes = vec![0; public_key_size];
+        let mut public_key_bytes = [0u8; 256];
         buffer.copy_to_slice(&mut public_key_bytes);
         let public_key = protocol::DhPublicKey::try_from(public_key_bytes.as_slice())
             .map_err(|_| CodingError::InvalidValue)?;
 
         // Read signature
-        let mut signature_bytes = vec![0; signature_size];
+        let mut signature_bytes = [0u8; 512];
         buffer.copy_to_slice(&mut signature_bytes);
         let signature = protocol::RsaPublic::try_from(signature_bytes.as_slice())
             .map_err(|_| CodingError::InvalidValue)?;

@@ -99,10 +99,9 @@ impl MurmuratServer {
             }
             MurmuratMessage::Data(data_message) => {
                 if let Some(session) = self.sessions.get(&addr) {
-                    println!("MESSAGE: {:?}", data_message);
                     let encrypted = EncryptedData::new(data_message.data, data_message.nonce);
                     let decrypted = encrypted.decrypt(&session.session);
-                    println!("Received data message!! {}", decrypted);
+                    println!("[{}] => {}", addr, decrypted);
                 } else {
                     panic!("Couldn't decrypt data...no session")
                 }

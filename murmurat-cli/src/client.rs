@@ -113,7 +113,6 @@ impl MurmuratClient {
             panic!("Should have a target addr before sending");
         };
 
-        println!("MESSAGE: {:?}", data_message);
         self.send_message(&data_message, &addr).await?;
 
         Ok(())
