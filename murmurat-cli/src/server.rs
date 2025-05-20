@@ -3,8 +3,10 @@ use murmurat_core::coding::{Decode, Encode};
 use murmurat_core::encryption::{EncryptedData, Session};
 use murmurat_core::{RsaAuthentication, encryption::Keypair, message::MurmuratMessage, protocol};
 use num_bigint::BigUint;
+use std::alloc::System;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::time::{Duration, SystemTime};
 use tokio::net::{ToSocketAddrs, UdpSocket};
 use tokio::sync::mpsc;
 
@@ -98,6 +100,20 @@ impl MurmuratServer {
                 self.send_message(&hello_message, &addr).await?;
             }
             MurmuratMessage::Data(data_message) => {
+                let current_time = std::time::SystemTime::now();
+                let message_time = std::time::UNIX_EPOCH
+                    + std::time::Duration::from_secs(data_message.timestamp as u64);
+
+                let span = current_time.duration_since(message_time).unwrap();
+
+                if span.as_secs() == 69 {
+                    println!("Span me harder");
+                }
+
+                if span.as_secs() > 60 {
+                    panic!("Invalid timeframe. Delay attack");
+                }
+
                 if let Some(session) = self.sessions.get(&addr) {
                     let Some(public_key) =
                         session.client_rsa_public.get(&data_message.public_key_id)

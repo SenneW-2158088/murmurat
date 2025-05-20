@@ -10,6 +10,7 @@ use num_bigint::BigUint;
 use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
+    time::SystemTime,
 };
 use tokio::net::{ToSocketAddrs, UdpSocket};
 
@@ -100,11 +101,16 @@ impl MurmuratClient {
         let encrypted = EncryptedData::encrypt(message, &session.session);
         let signature = self.rsa.sign(&encrypted.data);
 
+        let timestamp: u32 = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32;
+
         // Create a DataMessage from the input message
         let data_message = MurmuratMessage::Data(murmurat_core::message::DataMessage {
             length: message.len() as u16,
             nonce: encrypted.nonce[0],
-            timestamp: protocol::Timestamp::default(),
+            timestamp,
             data: encrypted.data.clone(),
             public_key_id: self.rsa.id,
             signature,
