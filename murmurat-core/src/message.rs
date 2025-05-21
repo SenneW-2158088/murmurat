@@ -22,7 +22,7 @@ impl Decode for DHMessage {
         buffer.copy_to_slice(&mut public_key_buffer);
 
         let public_key = protocol::DhPublicKey::try_from(public_key_buffer.as_slice())
-            .map_err(|_| CodingError::InvalidValue)?;
+            .map_err(|_| CodingError::InvalidValue(format!("Invalid public key format")))?;
 
         Ok(Self {
             dh_public: public_key,
@@ -58,7 +58,7 @@ impl Decode for HelloMessage {
         buffer.copy_to_slice(&mut signature_bytes);
 
         let signature = protocol::RsaPublic::try_from(signature_bytes.as_slice())
-            .map_err(|_| CodingError::InvalidValue)?;
+            .map_err(|_| CodingError::InvalidValue(format!("Invalid signature")))?;
 
         Ok(Self {
             pubkey_id,
@@ -80,7 +80,7 @@ pub struct DataMessage {
 
 impl Encode for DataMessage {
     fn encode<T: bytes::BufMut>(&self, buffer: &mut T) -> crate::coding::Result<()> {
-        let total_size = self.length + 521;
+        let total_size = self.length + 521 as u16;
         buffer.put_u16(total_size);
         buffer.put_u8(self.nonce);
         buffer.put_u32(self.timestamp);
@@ -92,13 +92,11 @@ impl Encode for DataMessage {
 }
 impl Decode for DataMessage {
     fn decode<T: bytes::Buf>(buffer: &mut T) -> crate::coding::Result<Self> {
-        println!("REMAINING: {}", buffer.remaining());
+        // println!("REMAINING: {}", buffer.remaining());
         // Read length
         let total_size = buffer.get_u16();
-        println!("SIZE: {}", total_size);
 
         let length = total_size - 521;
-        println!("length: {}", length);
 
         // Read nonce
         let nonce = buffer.get_u8();
@@ -191,7 +189,12 @@ impl Decode for MurmuratMessage {
                 let data_message = DataMessage::decode(buffer)?;
                 MurmuratMessage::Data(data_message)
             }
-            _ => return Err(CodingError::InvalidValue),
+            _ => {
+                return Err(CodingError::InvalidValue(format!(
+                    "Invalid message type {}",
+                    kind
+                )));
+            }
         };
 
         Ok(message)

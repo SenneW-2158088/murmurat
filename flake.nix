@@ -29,6 +29,7 @@
           rustfmt
           clippy
           rust-analyzer
+          libpcap
         ];
 
         inherit buildInputs;

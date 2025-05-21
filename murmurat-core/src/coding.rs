@@ -5,7 +5,7 @@ use bytes::{Buf, BufMut};
 pub enum CodingError {
     BufferTooSmall,
     EndOfBuffer,
-    InvalidValue,
+    InvalidValue(String),
 }
 
 pub type Result<T> = std::result::Result<T, CodingError>;

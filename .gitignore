@@ -5,4 +5,4 @@
 
 /target
 assets
-output.txt
+*.txt

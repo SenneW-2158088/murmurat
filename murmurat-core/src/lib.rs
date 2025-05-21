@@ -12,6 +12,7 @@ use rsa::{
 };
 use sha3::{Digest, Sha3_256};
 
+pub mod attack;
 pub mod coding;
 pub mod encryption;
 pub mod message;

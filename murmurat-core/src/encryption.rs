@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use num_bigint::BigUint;
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, One, Zero};
 use rand::Rng;
 
 use aes::{
@@ -128,7 +128,7 @@ pub struct EncryptedData {
     pub nonce: [u8; 16],
 }
 
-type Aes128Ctr64LE = ctr::Ctr64LE<aes::Aes128>;
+pub type Aes128Ctr64LE = ctr::Ctr64LE<aes::Aes128>;
 
 impl EncryptedData {
     pub fn new(data: Vec<u8>, nonce: Nonce) -> Self {

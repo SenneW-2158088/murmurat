@@ -9,6 +9,7 @@ use murmurat_core::{
 use num_bigint::BigUint;
 use std::{
     collections::HashMap,
+    fmt::Debug,
     net::{IpAddr, SocketAddr},
     time::SystemTime,
 };
@@ -134,7 +135,7 @@ impl MurmuratClient {
 
     async fn send_message<T, A>(&self, message: &T, addr: &A) -> std::io::Result<()>
     where
-        T: Encode,
+        T: Encode + Debug,
         A: ToSocketAddrs,
     {
         let mut buffer = Vec::new();
